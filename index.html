@@ -66,23 +66,24 @@ const W=1020,H0=940;let H=H0;
 let data=null;
 const WSD_DN=[15,20,25,40,50,80,100,150,200,250,300,400,450,600,700,800,900,1000,1200,1400,1600,1800,2000,2200,2500];
 const PE_NS=[20,25,32,50,63,90,125,180,250,315];
+const DIA=[25,50,80,100,150,200,250,300,400,500];
 const MATS={
- DI:{n:'球墨鑄鐵 DI (Ductile iron)',specs:['K9','K12'],dia:WSD_DN.filter(d=>d>=80&&d<=2000),v:()=>1250},
- Steel:{n:'鋼管 Steel (MS)',specs:['Steel ≥430 N/mm²','Cement-lined'],dia:WSD_DN.filter(d=>d>=150),v:()=>1300},
- PE100:{n:'聚乙烯 PE100 (HDPE)',specs:['PE100 SDR11','PE100 SDR9','PE100 SDR17'],dia:PE_NS.concat([355,400,450,500,560,630]),v:d=>d<=63?480:d<=125?420:d<=250?380:350},
- MDPE:{n:'中密度聚乙烯 MDPE (PE80, legacy)',specs:['PE80 SDR11','PE80 SDR17'],dia:PE_NS,v:d=>d<=63?470:d<=125?400:370},
- PVCU:{n:'硬聚氯乙烯 UPVC (PVC-U)',specs:['PN12','PN15','Class C','Class D','Class E'],dia:[15,20,25,32,40,50,63,80,90,100,110,150,160,200,250,300],v:()=>480},
- LGI:{n:'襯塑鍍鋅鋼 Lined GI (PVC/PE-lined steel)',specs:['Medium, PE-lined (JWWA K132)','Medium, PVC-lined (JWWA K116)'],dia:[15,20,25,32,40,50,65,80,100,125,150],v:()=>1300},
- SS:{n:'不銹鋼 Stainless steel',specs:['1.4404 (316L)','1.4401 (316)'],dia:[15,20,25,32,40,50,65,80,100,125,150,200,250,300],v:()=>1300},
- Cu:{n:'銅管 Copper',specs:['BS EN 1057 R250 (half-hard)','BS EN 1057 R290 (hard)'],dia:[15,22,28,35,42,54,67,76.1,108,133,159],v:()=>1250},
- CI:{n:'鑄鐵 Cast iron (legacy)',specs:['Grey CI (legacy)'],dia:WSD_DN.filter(d=>d>=80&&d<=600),v:()=>1200},
- AC:{n:'石棉水泥 Asbestos cement (legacy)',specs:['AC (legacy)'],dia:WSD_DN.filter(d=>d>=80&&d<=600),v:()=>1000},
- X:{n:'自訂 Custom',specs:[],dia:[],v:()=>1000}};
+ DI:{n:'球墨鑄鐵 DI (Ductile iron)',specs:['K9','K12'],dia:DIA,v:()=>1250},
+ Steel:{n:'鋼管 Steel (MS)',specs:['Steel ≥430 N/mm²','Cement-lined'],dia:DIA,v:()=>1300},
+ PE100:{n:'聚乙烯 PE100 (HDPE)',specs:['PE100 SDR11','PE100 SDR9','PE100 SDR17'],dia:DIA,v:d=>d<=63?480:d<=125?420:d<=250?380:350},
+ MDPE:{n:'中密度聚乙烯 MDPE (PE80, legacy)',specs:['PE80 SDR11','PE80 SDR17'],dia:DIA,v:d=>d<=63?470:d<=125?400:370},
+ PVCU:{n:'硬聚氯乙烯 UPVC (PVC-U)',specs:['PN12','PN15','Class C','Class D','Class E'],dia:DIA,v:()=>480},
+ LGI:{n:'襯塑鍍鋅鋼 Lined GI (PVC/PE-lined steel)',specs:['Medium, PE-lined (JWWA K132)','Medium, PVC-lined (JWWA K116)'],dia:DIA,v:()=>1300},
+ SS:{n:'不銹鋼 Stainless steel',specs:['1.4404 (316L)','1.4401 (316)'],dia:DIA,v:()=>1300},
+ Cu:{n:'銅管 Copper',specs:['BS EN 1057 R250 (half-hard)','BS EN 1057 R290 (hard)'],dia:DIA,v:()=>1250},
+ CI:{n:'鑄鐵 Cast iron (legacy)',specs:['Grey CI (legacy)'],dia:DIA,v:()=>1200},
+ AC:{n:'石棉水泥 Asbestos cement (legacy)',specs:['AC (legacy)'],dia:DIA,v:()=>1000},
+ X:{n:'自訂 Custom',specs:[],dia:DIA,v:()=>1000}};
 const SH={DI:'DI',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'SS',Cu:'Cu',CI:'CI',AC:'AC'};
 const FN={DI:'Ductile Iron',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'Stainless Steel',Cu:'Copper',CI:'Cast Iron',AC:'Asbestos Cement'};
 let order=[];const MAXS=10;
 const opts=(arr,f=x=>x)=>arr.map(x=>`<option value="${x}">${f(x)}</option>`).join('')+'<option value="__c">自訂 (Custom)</option>';
-const DEF={MDPE:{sp:'PE80 SDR11',d:'125',L:152}};
+const DEF={MDPE:{sp:'PE80 SDR11',d:'100',L:152}};
 let uid=0;
 function buildMats(){const box=$('mats');box.innerHTML='';Object.keys(MATS).forEach(k=>{const l=document.createElement('button');l.type='button';l.className='mt';l.id='mt_'+k;
  l.innerHTML=`<span>＋ ${MATS[k].n}</span><span class="ord" id="ord_${k}"></span>`;box.appendChild(l);

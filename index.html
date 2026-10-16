@@ -10,6 +10,10 @@ body{font-family:Arial,Helvetica,"PingFang HK","Noto Sans TC",sans-serif;margin:
 details{border-bottom:1px solid #ddd;margin:4px 0}
 summary{font-weight:bold;font-size:15px;padding:10px 4px;cursor:pointer;min-height:44px}
 .r{display:flex;align-items:center;gap:6px;margin:6px 0;flex-wrap:wrap}.r>label:first-child{flex:0 0 130px}
+.mats{}#mats label.mt{display:flex;align-items:center;gap:10px;min-height:46px;padding:6px 8px;margin:4px 0;border:1px solid #ccc;border-radius:6px;background:#fafafa;font-size:15px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#mats label.mt.on{background:#e3f0ff;border-color:#1565c0}#mats label.mt.dis{opacity:.45}
+#mats .ord{margin-left:auto;font-weight:bold;color:#1565c0}
+.sec h4{display:flex;align-items:center;gap:4px}.sec h4 span{flex:1}.sec h4 button{margin:0;padding:4px 10px;min-height:40px;min-width:44px}
 .sec{border:1px solid #bbb;border-radius:6px;padding:4px 6px;margin:6px 0;background:#fafcff}.sec h4{margin:4px 0}.cust{flex:1 1 100%!important}
 #src li{margin:4px 0;word-break:break-all;font-size:13px}
 .r input[type=text],.r input[type=number],.r select{flex:1;min-width:0;font-size:16px;padding:8px;min-height:40px}
@@ -27,8 +31,9 @@ canvas{background:#fff;border:1px solid #ccc;width:100%;max-width:1020px;height:
 </style></head><body>
 <div id="panel">
 <details open><summary>管道參數 (Pipe)</summary>
+<div style="font-weight:bold;margin:6px 0 2px">物料 (Materials) — 最多選3項 (max 3, order A→B = check order)</div>
+<div id="mats"></div><div id="matHint" style="font-size:12px;color:#666;margin:2px 0 6px"></div>
 <div id="secs"></div>
-<div class="btns"><button id="addSec">＋ 加管段 (Add section)</button><button id="rmSec">－ 刪管段 (Remove)</button></div>
 <div class="r"><label>總長度 (Total length, m)</label><input id="len" type="number" readonly style="background:#f0f0f0"></div>
 <div class="r"><label>總傳播時間 (Travel time A→B, ms)</label><input id="tt" type="text" readonly style="background:#f0f0f0"></div>
 <div class="r"><label>濾波下限 (Filter low, Hz)</label><input id="flo" type="number" value="60"></div>
@@ -74,28 +79,42 @@ const MATS={
  AC:{n:'石棉水泥 Asbestos cement (legacy)',specs:['AC (legacy)'],dia:WSD_DN.filter(d=>d>=80&&d<=600),v:()=>1000},
  X:{n:'自訂 Custom',specs:[],dia:[],v:()=>1000}};
 const SH={DI:'DI',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'SS',Cu:'Cu',CI:'CI',AC:'AC'};
-let nsec=0;
+let order=[];const MAXS=3;
 const opts=(arr,f=x=>x)=>arr.map(x=>`<option value="${x}">${f(x)}</option>`).join('')+'<option value="__c">自訂 (Custom)</option>';
-function mkSec(i,m,sp,d,L){const e=document.createElement('div');e.className='sec';e.id='S'+i;
- e.innerHTML=`<h4>管段 ${i+1} (Section ${i+1})</h4>
-<div class="r"><label>物料 (Material)</label><select id="m${i}">${Object.keys(MATS).filter(k=>k!='X').map(k=>`<option value="${k}">${MATS[k].n}</option>`).join('')}<option value="X">自訂 (Custom)</option></select><input class="cust" id="mc${i}" type="text" placeholder="物料 Material"></div>
+const DEF={MDPE:{sp:'PE80 SDR11',d:'125',L:152}};
+function buildMats(){const box=$('mats');box.innerHTML='';Object.keys(MATS).forEach(k=>{const l=document.createElement('label');l.className='mt';l.id='mt_'+k;
+ l.innerHTML=`<input type="checkbox" id="ck_${k}"><span>${MATS[k].n}</span><span class="ord" id="ord_${k}"></span>`;box.appendChild(l);
+ $('ck_'+k).onchange=()=>toggleMat(k,$('ck_'+k).checked);});}
+function toggleMat(k,on){if(on){if(order.length>=MAXS){$('ck_'+k).checked=false;return;}order.push(k);mkSec(k);}
+ else{if(order.length<=1){$('ck_'+k).checked=true;$('matHint').textContent='最少選1項 (At least 1 material required)';return;}order=order.filter(x=>x!=k);$('S'+k).remove();}
+ refresh();generate();}
+function refresh(){Object.keys(MATS).forEach(k=>{const c=$('ck_'+k),on=order.includes(k);c.checked=on;c.disabled=!on&&order.length>=MAXS;
+ $('mt_'+k).classList.toggle('on',on);$('mt_'+k).classList.toggle('dis',c.disabled);$('ord_'+k).textContent=on?(order.indexOf(k)+1):'';});
+ order.forEach((k,i)=>{const e=$('S'+k);$('secs').appendChild(e);$('sn'+k).textContent=`管段 ${i+1} (Section ${i+1}): ${k=='X'?'自訂 Custom':SH[k]}`;
+  $('up'+k).disabled=i==0;$('dn'+k).disabled=i==order.length-1;});
+ $('matHint').textContent=order.length>=MAXS?'已選3項 (3 selected — max)':`已選 ${order.length}/3 (selected)`;}
+function mv(k,d){const i=order.indexOf(k),j=i+d;if(j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];refresh();generate();}
+function mkSec(i){const df=DEF[i]||{L:50};const e=document.createElement('div');e.className='sec';e.id='S'+i;
+ e.innerHTML=`<h4><span id="sn${i}"></span><button id="up${i}" title="上移 (Up)">▲</button><button id="dn${i}" title="下移 (Down)">▼</button></h4>
+<input type="hidden" id="m${i}" value="${i}"><div class="r" style="${i=='X'?'':'display:none'}"><label>物料 (Material)</label><input class="cust" id="mc${i}" type="text" placeholder="物料 Material"></div>
 <div class="r" style="display:none"><label>規格 (Spec)</label><select id="s${i}"></select><input class="cust" id="sc${i}" type="text" placeholder="規格 Spec"></div>
 <div class="r"><label>管徑 (Diameter, mm)</label><select id="d${i}"></select><input class="cust" id="dc${i}" type="number" placeholder="mm"></div>
-<div class="r"><label>段長 (Length, m)</label><input id="l${i}" type="number" step="0.1" value="${L}"></div>
+<div class="r"><label>段長 (Length, m)</label><input id="l${i}" type="number" step="0.1" value="${df.L}"></div>
 <div class="r"><label>聲速 (Velocity, m/s)</label><input id="v${i}" type="number"><label style="flex:0 0 auto"><input type="checkbox" id="va${i}" checked>自動 (Auto)</label></div>`;
- $('secs').appendChild(e);$('m'+i).value=m;fillM(i,sp,d);
+ $('secs').appendChild(e);fillM(i,df.sp,df.d);
  const ch=()=>{syncCust(i);autoV(i);generate();};
- $('m'+i).onchange=()=>{fillM(i);ch();};$('s'+i).onchange=ch;$('d'+i).onchange=ch;
+ $('s'+i).onchange=ch;$('d'+i).onchange=ch;$('up'+i).onclick=()=>mv(i,-1);$('dn'+i).onclick=()=>mv(i,1);
  ['mc','sc','dc'].forEach(k=>$(k+i).oninput=ch);$('l'+i).oninput=generate;
  $('v'+i).oninput=()=>{$('va'+i).checked=false;generate();};$('va'+i).onchange=ch;syncCust(i);autoV(i);}
 function fillM(i,sp,d){const M=MATS[$('m'+i).value];$('s'+i).innerHTML=opts(M.specs);$('d'+i).innerHTML=opts(M.dia);
  if(sp!==undefined)$('s'+i).value=sp;if(d!==undefined)$('d'+i).value=d;
- if(!M.specs.length)$('s'+i).value='__c';if(!M.dia.length)$('d'+i).value='__c';syncCust(i);}
-function syncCust(i){$('mc'+i).style.display=$('m'+i).value=='X'?'':'none';$('sc'+i).style.display=$('s'+i).value=='__c'?'':'none';$('dc'+i).style.display=$('d'+i).value=='__c'?'':'none';}
+ if(!M.specs.length)$('s'+i).value='__c';if(!M.dia.length)$('d'+i).value='__c';
+ if($('d'+i).selectedIndex<0)$('d'+i).selectedIndex=Math.floor(M.dia.length/2);syncCust(i);}
+function syncCust(i){$('sc'+i).style.display=$('s'+i).value=='__c'?'':'none';$('dc'+i).style.display=$('d'+i).value=='__c'?'':'none';}
 function secVal(i){const m=$('m'+i).value,mat=m=='X'?$('mc'+i).value:SH[m],spec=$('s'+i).value=='__c'?$('sc'+i).value:$('s'+i).value,
  dia=$('d'+i).value=='__c'?$('dc'+i).value:$('d'+i).value;return{m,mat,spec,dia:+dia||0,diaS:dia,len:+$('l'+i).value||0,vel:+$('v'+i).value||1};}
 function autoV(i){if($('va'+i).checked){const s=secVal(i);$('v'+i).value=MATS[s.m].v(s.dia);}}
-function secs(){return Array.from({length:nsec},(_,i)=>secVal(i));}
+function secs(){return order.map(k=>secVal(k));}
 // travel time from A to position x (m)
 function tA(x,S){let t=0,a=0;for(const s of S){const seg=Math.max(0,Math.min(s.len,x-a));t+=seg/s.vel;a+=s.len;}return t;}
 function xFromTA(t,S){let a=0;for(const s of S){const ts=s.len/s.vel;if(t<=ts)return a+t*s.vel;t-=ts;a+=s.len;}return a;}
@@ -179,8 +198,6 @@ $('gen').onclick=generate;
 $('rs').onclick=()=>{$('seed').value=Math.floor(Math.random()*1e9);generate();};
 $('clar').oninput=()=>{$('clv').textContent=$('clar').value;generate();};
 ['flo','fhi','notch','fmax','dur'].forEach(id=>$(id).addEventListener('input',draw));
-$('addSec').onclick=()=>{if(nsec<3){mkSec(nsec,'PE100','PE100 SDR11','125',50);nsec++;generate();}};
-$('rmSec').onclick=()=>{if(nsec>1){nsec--;$('S'+nsec).remove();generate();}};
-mkSec(0,'MDPE','PE80 SDR11','125',152);nsec=1;
+buildMats();order=['MDPE'];mkSec('MDPE');refresh();
 generate();
 </script></body></html>

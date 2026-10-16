@@ -66,20 +66,20 @@ const MATS={
  Steel:{n:'鋼管 Steel (MS)',specs:['Steel ≥430 N/mm²','Cement-lined'],dia:WSD_DN.filter(d=>d>=150),v:()=>1300},
  PE100:{n:'聚乙烯 PE100 (HDPE)',specs:['PE100 SDR11','PE100 SDR9','PE100 SDR17'],dia:PE_NS.concat([355,400,450,500,560,630]),v:d=>d<=63?480:d<=125?420:d<=250?380:350},
  MDPE:{n:'中密度聚乙烯 MDPE (PE80, legacy)',specs:['PE80 SDR11','PE80 SDR17'],dia:PE_NS,v:d=>d<=63?470:d<=125?400:370},
- PVCU:{n:'硬聚氯乙烯 uPVC (PVC-U)',specs:['PN12','PN15','Class C','Class D','Class E'],dia:[15,20,25,32,40,50,63,80,90,100,110,150,160,200,250,300],v:()=>480},
+ PVCU:{n:'硬聚氯乙烯 UPVC (PVC-U)',specs:['PN12','PN15','Class C','Class D','Class E'],dia:[15,20,25,32,40,50,63,80,90,100,110,150,160,200,250,300],v:()=>480},
  LGI:{n:'襯塑鍍鋅鋼 Lined GI (PVC/PE-lined steel)',specs:['Medium, PE-lined (JWWA K132)','Medium, PVC-lined (JWWA K116)'],dia:[15,20,25,32,40,50,65,80,100,125,150],v:()=>1300},
  SS:{n:'不銹鋼 Stainless steel',specs:['1.4404 (316L)','1.4401 (316)'],dia:[15,20,25,32,40,50,65,80,100,125,150,200,250,300],v:()=>1300},
  Cu:{n:'銅管 Copper',specs:['BS EN 1057 R250 (half-hard)','BS EN 1057 R290 (hard)'],dia:[15,22,28,35,42,54,67,76.1,108,133,159],v:()=>1250},
  CI:{n:'鑄鐵 Cast iron (legacy)',specs:['Grey CI (legacy)'],dia:WSD_DN.filter(d=>d>=80&&d<=600),v:()=>1200},
  AC:{n:'石棉水泥 Asbestos cement (legacy)',specs:['AC (legacy)'],dia:WSD_DN.filter(d=>d>=80&&d<=600),v:()=>1000},
  X:{n:'自訂 Custom',specs:[],dia:[],v:()=>1000}};
-const SH={DI:'DI',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'uPVC',LGI:'Lined GI',SS:'SS',Cu:'Cu',CI:'CI',AC:'AC'};
+const SH={DI:'DI',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'SS',Cu:'Cu',CI:'CI',AC:'AC'};
 let nsec=0;
 const opts=(arr,f=x=>x)=>arr.map(x=>`<option value="${x}">${f(x)}</option>`).join('')+'<option value="__c">自訂 (Custom)</option>';
 function mkSec(i,m,sp,d,L){const e=document.createElement('div');e.className='sec';e.id='S'+i;
  e.innerHTML=`<h4>管段 ${i+1} (Section ${i+1})</h4>
 <div class="r"><label>物料 (Material)</label><select id="m${i}">${Object.keys(MATS).filter(k=>k!='X').map(k=>`<option value="${k}">${MATS[k].n}</option>`).join('')}<option value="X">自訂 (Custom)</option></select><input class="cust" id="mc${i}" type="text" placeholder="物料 Material"></div>
-<div class="r"><label>規格 (Spec)</label><select id="s${i}"></select><input class="cust" id="sc${i}" type="text" placeholder="規格 Spec"></div>
+<div class="r" style="display:none"><label>規格 (Spec)</label><select id="s${i}"></select><input class="cust" id="sc${i}" type="text" placeholder="規格 Spec"></div>
 <div class="r"><label>管徑 (Diameter, mm)</label><select id="d${i}"></select><input class="cust" id="dc${i}" type="number" placeholder="mm"></div>
 <div class="r"><label>段長 (Length, m)</label><input id="l${i}" type="number" step="0.1" value="${L}"></div>
 <div class="r"><label>聲速 (Velocity, m/s)</label><input id="v${i}" type="number"><label style="flex:0 0 auto"><input type="checkbox" id="va${i}" checked>自動 (Auto)</label></div>`;
@@ -106,7 +106,7 @@ const P=()=>{const S=secs();const len=S.reduce((a,s)=>a+s.len,0);$('len').value=
  flo:$('flo').value,fhi:$('fhi').value,notch:$('notch').value,fmax:$('fmax').value,dur:$('dur').value};};
 const LABELS=[
  ['h1','Header 1',p=>`Length: ${p.len.toFixed(1)} m      Velocity: ${p.vel} m/s`],
- ['h2','Header 2',p=>'Pipe: '+(p.S.length==1?`${p.S[0].mat}, ${p.S[0].spec} ${p.S[0].diaS} mm`:p.S.map(s=>`${s.mat} ${s.spec} ${s.diaS} mm ${s.len.toFixed(1)} m`).join(' / '))],
+ ['h2','Header 2',p=>'Pipe: '+(p.S.length==1?`${p.S[0].mat} ${p.S[0].diaS} mm`:p.S.map(s=>`${s.mat} ${s.diaS} mm ${s.len.toFixed(1)} m`).join(' / '))],
  ['h3','Header 3',p=>`Filter: ${p.flo} Hz - ${p.fhi} Hz`],
  ['h4','Header 4',p=>`Notch Filter: ${p.notch}`],
  ['A','A',()=>'A'],['distA','distA',p=>`${data.da.toFixed(1)} m`],['leak','Leak',()=>'Leak'],

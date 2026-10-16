@@ -10,8 +10,8 @@ body{font-family:Arial,Helvetica,"PingFang HK","Noto Sans TC",sans-serif;margin:
 details{border-bottom:1px solid #ddd;margin:4px 0}
 summary{font-weight:bold;font-size:15px;padding:10px 4px;cursor:pointer;min-height:44px}
 .r{display:flex;align-items:center;gap:6px;margin:6px 0;flex-wrap:wrap}.r>label:first-child{flex:0 0 130px}
-.mats{}#mats label.mt{display:flex;align-items:center;gap:10px;min-height:46px;padding:6px 8px;margin:4px 0;border:1px solid #ccc;border-radius:6px;background:#fafafa;font-size:15px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-#mats label.mt.on{background:#e3f0ff;border-color:#1565c0}#mats label.mt.dis{opacity:.45}
+.mats{}#mats button.mt{width:100%;text-align:left;font:inherit;background:#fff;cursor:pointer;display:flex;align-items:center;gap:10px;min-height:46px;padding:6px 8px;margin:4px 0;border:1px solid #ccc;border-radius:6px;background:#fafafa;font-size:15px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#mats .mt.on{background:#e3f0ff;border-color:#1565c0}#mats .mt.dis{opacity:.45}
 #mats .ord{margin-left:auto;font-weight:bold;color:#1565c0}
 .sec h4{display:flex;align-items:center;gap:4px}.sec h4 span{flex:1}.sec h4 button{margin:0;padding:4px 10px;min-height:40px;min-width:44px}
 .sec{border:1px solid #bbb;border-radius:6px;padding:4px 6px;margin:6px 0;background:#fafcff}.sec h4{margin:4px 0}.cust{flex:1 1 100%!important}
@@ -31,7 +31,7 @@ canvas{background:#fff;border:1px solid #ccc;width:100%;max-width:1020px;height:
 </style></head><body>
 <div id="panel">
 <details open><summary>管道參數 (Pipe)</summary>
-<div style="font-weight:bold;margin:6px 0 2px">物料 (Materials) — 最多選3項 (max 3, order A→B = check order)</div>
+<div style="font-weight:bold;margin:6px 0 2px">物料 (Materials) — 點選加入管段，可重複 (tap to add a section, repeats OK; max 10, order A→B)</div>
 <div id="mats"></div><div id="matHint" style="font-size:12px;color:#666;margin:2px 0 6px"></div>
 <div id="secs"></div>
 <div class="r"><label>總長度 (Total length, m)</label><input id="len" type="number" readonly style="background:#f0f0f0"></div>
@@ -80,31 +80,31 @@ const MATS={
  X:{n:'自訂 Custom',specs:[],dia:[],v:()=>1000}};
 const SH={DI:'DI',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'SS',Cu:'Cu',CI:'CI',AC:'AC'};
 const FN={DI:'Ductile Iron',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'Stainless Steel',Cu:'Copper',CI:'Cast Iron',AC:'Asbestos Cement'};
-let order=[];const MAXS=3;
+let order=[];const MAXS=10;
 const opts=(arr,f=x=>x)=>arr.map(x=>`<option value="${x}">${f(x)}</option>`).join('')+'<option value="__c">自訂 (Custom)</option>';
 const DEF={MDPE:{sp:'PE80 SDR11',d:'125',L:152}};
-function buildMats(){const box=$('mats');box.innerHTML='';Object.keys(MATS).forEach(k=>{const l=document.createElement('label');l.className='mt';l.id='mt_'+k;
- l.innerHTML=`<input type="checkbox" id="ck_${k}"><span>${MATS[k].n}</span><span class="ord" id="ord_${k}"></span>`;box.appendChild(l);
- $('ck_'+k).onchange=()=>toggleMat(k,$('ck_'+k).checked);});}
-function toggleMat(k,on){if(on){if(order.length>=MAXS){$('ck_'+k).checked=false;return;}order.push(k);mkSec(k);}
- else{if(order.length<=1){$('ck_'+k).checked=true;$('matHint').textContent='最少選1項 (At least 1 material required)';return;}order=order.filter(x=>x!=k);$('S'+k).remove();}
- refresh();generate();}
-function refresh(){Object.keys(MATS).forEach(k=>{const c=$('ck_'+k),on=order.includes(k);c.checked=on;c.disabled=!on&&order.length>=MAXS;
- $('mt_'+k).classList.toggle('on',on);$('mt_'+k).classList.toggle('dis',c.disabled);$('ord_'+k).textContent=on?(order.indexOf(k)+1):'';});
- order.forEach((k,i)=>{const e=$('S'+k);$('secs').appendChild(e);$('sn'+k).textContent=`管段 ${i+1} (Section ${i+1}): ${k=='X'?'自訂 Custom':SH[k]}`;
-  $('up'+k).disabled=i==0;$('dn'+k).disabled=i==order.length-1;});
- $('matHint').textContent=order.length>=MAXS?'已選3項 (3 selected — max)':`已選 ${order.length}/3 (selected)`;}
+let uid=0;
+function buildMats(){const box=$('mats');box.innerHTML='';Object.keys(MATS).forEach(k=>{const l=document.createElement('button');l.type='button';l.className='mt';l.id='mt_'+k;
+ l.innerHTML=`<span>＋ ${MATS[k].n}</span><span class="ord" id="ord_${k}"></span>`;box.appendChild(l);
+ l.onclick=()=>addSec(k);});}
+function addSec(k){if(order.length>=MAXS)return;const id='q'+(uid++);order.push(id);mkSec(id,k);refresh();generate();}
+function delSec(id){if(order.length<=1){$('matHint').textContent='最少1段 (At least 1 section required)';return;}order=order.filter(x=>x!=id);$('S'+id).remove();refresh();generate();}
+function refresh(){const full=order.length>=MAXS;Object.keys(MATS).forEach(k=>{const n=order.filter(id=>$('m'+id).value==k).length,c=$('mt_'+k);c.disabled=full;
+ c.classList.toggle('on',n>0);c.classList.toggle('dis',full);$('ord_'+k).textContent=n?('×'+n):'';});
+ order.forEach((id,i)=>{const k=$('m'+id).value,e=$('S'+id);$('secs').appendChild(e);$('sn'+id).textContent=`管段 ${i+1} (Section ${i+1}): ${k=='X'?'自訂 Custom':SH[k]}`;
+  $('up'+id).disabled=i==0;$('dn'+id).disabled=i==order.length-1;$('x'+id).disabled=order.length<=1;});
+ $('matHint').textContent=full?`已選 ${MAXS}/${MAXS} (${MAXS} sections — max)`:`已選 ${order.length}/${MAXS} (sections; tap a material to add)`;}
 function mv(k,d){const i=order.indexOf(k),j=i+d;if(j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];refresh();generate();}
-function mkSec(i){const df=DEF[i]||{L:50};const e=document.createElement('div');e.className='sec';e.id='S'+i;
- e.innerHTML=`<h4><span id="sn${i}"></span><button id="up${i}" title="上移 (Up)">▲</button><button id="dn${i}" title="下移 (Down)">▼</button></h4>
-<input type="hidden" id="m${i}" value="${i}"><div class="r" style="${i=='X'?'':'display:none'}"><label>物料 (Material)</label><input class="cust" id="mc${i}" type="text" placeholder="物料 Material"></div>
+function mkSec(i,mk){const df=DEF[mk]||{L:50};const e=document.createElement('div');e.className='sec';e.id='S'+i;
+ e.innerHTML=`<h4><span id="sn${i}"></span><button id="up${i}" title="上移 (Up)">▲</button><button id="dn${i}" title="下移 (Down)">▼</button><button id="x${i}" title="刪除 (Delete)">✕</button></h4>
+<input type="hidden" id="m${i}" value="${mk}"><div class="r" style="${mk=='X'?'':'display:none'}"><label>物料 (Material)</label><input class="cust" id="mc${i}" type="text" placeholder="物料 Material"></div>
 <div class="r" style="display:none"><label>規格 (Spec)</label><select id="s${i}"></select><input class="cust" id="sc${i}" type="text" placeholder="規格 Spec"></div>
 <div class="r"><label>管徑 (Diameter, mm)</label><select id="d${i}"></select><input class="cust" id="dc${i}" type="number" placeholder="mm"></div>
 <div class="r"><label>段長 (Length, m)</label><input id="l${i}" type="number" step="0.1" value="${df.L}"></div>
 <div class="r"><label>聲速 (Velocity, m/s)</label><input id="v${i}" type="number"><label style="flex:0 0 auto"><input type="checkbox" id="va${i}" checked>自動 (Auto)</label></div>`;
  $('secs').appendChild(e);fillM(i,df.sp,df.d);
  const ch=()=>{syncCust(i);autoV(i);generate();};
- $('s'+i).onchange=ch;$('d'+i).onchange=ch;$('up'+i).onclick=()=>mv(i,-1);$('dn'+i).onclick=()=>mv(i,1);
+ $('s'+i).onchange=ch;$('d'+i).onchange=ch;$('up'+i).onclick=()=>mv(i,-1);$('dn'+i).onclick=()=>mv(i,1);$('x'+i).onclick=()=>delSec(i);
  ['mc','sc','dc'].forEach(k=>$(k+i).oninput=ch);$('l'+i).oninput=generate;
  $('v'+i).oninput=()=>{$('va'+i).checked=false;generate();};$('va'+i).onchange=ch;syncCust(i);autoV(i);}
 function fillM(i,sp,d){const M=MATS[$('m'+i).value];$('s'+i).innerHTML=opts(M.specs);$('d'+i).innerHTML=opts(M.dia);
@@ -127,7 +127,7 @@ const P=()=>{const S=secs();const len=S.reduce((a,s)=>a+s.len,0);$('len').value=
 const LABELS=[
  ['h1','Header 1',p=>`Length: ${p.len.toFixed(1)} m      Velocity: ${p.vel} m/s`],
  ['h2','Header 2',p=>'Pipe: '+(p.S.length==1?`${p.S[0].mat} ${p.S[0].diaS} mm`:'Multiple materials')],
- ...[0,1,2].map(i=>['p'+(i+1),`Pipe section ${i+1} (cols split by |)`,p=>{const s=p.S[i];return s?`${i+1}:  ${s.len.toFixed(1)} m | ${s.full} ${s.diaS} mm | ${s.vel} m/s`:'';}]),
+ ...Array.from({length:MAXS},(_,i)=>i).map(i=>['p'+(i+1),`Pipe section ${i+1} (cols split by |)`,p=>{const s=p.S[i];return s?`${i+1}:  ${s.len.toFixed(1)} m | ${s.full} ${s.diaS} mm | ${s.vel} m/s`:'';}]),
  ['h3','Header 3',p=>`Filter: ${p.flo} Hz - ${p.fhi} Hz`],
  ['h4','Header 4',p=>`Notch Filter: ${p.notch}`],
  ['A','A',()=>'A'],['distA','distA',p=>`${data.da.toFixed(1)} m`],['leak','Leak',()=>'Leak'],
@@ -206,6 +206,6 @@ $('gen').onclick=generate;
 $('rs').onclick=()=>{$('seed').value=Math.floor(Math.random()*1e9);generate();};
 $('clar').oninput=()=>{$('clv').textContent=$('clar').value;generate();};
 ['flo','fhi','notch','fmax','dur'].forEach(id=>$(id).addEventListener('input',draw));
-buildMats();order=['MDPE'];mkSec('MDPE');refresh();
+buildMats();order=['q0'];uid=1;mkSec('q0','MDPE');refresh();
 generate();
 </script></body></html>

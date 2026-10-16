@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-HK"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>漏水聲相關儀圖表生成器 (Leak Noise Correlator Generator)</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,Helvetica,"PingFang HK","Noto Sans TC",sans-serif;margin:0;display:flex;gap:12px;padding:10px;background:#eee;-webkit-text-size-adjust:100%}
+#panel{width:360px;flex:0 0 360px;background:#fff;padding:10px;font-size:14px;border:1px solid #ccc;max-height:calc(100vh - 20px);overflow:auto}
+#chartWrap{flex:1;min-width:0}
+details{border-bottom:1px solid #ddd;margin:4px 0}
+summary{font-weight:bold;font-size:15px;padding:10px 4px;cursor:pointer;min-height:44px}
+.r{display:flex;align-items:center;gap:6px;margin:6px 0;flex-wrap:wrap}.r>label:first-child{flex:0 0 130px}
+.sec{border:1px solid #bbb;border-radius:6px;padding:4px 6px;margin:6px 0;background:#fafcff}.sec h4{margin:4px 0}.cust{flex:1 1 100%!important}
+#src li{margin:4px 0;word-break:break-all;font-size:13px}
+.r input[type=text],.r input[type=number],.r select{flex:1;min-width:0;font-size:16px;padding:8px;min-height:40px}
+.r input[type=range]{flex:1;min-height:36px}
+input[type=checkbox]{width:22px;height:22px;vertical-align:middle}
+button{margin:4px 2px;padding:10px 14px;font-size:15px;min-height:44px;border-radius:6px;border:1px solid #888;background:#f6f6f6}
+#gen{background:#1565c0;color:#fff;border-color:#1565c0}
+.btns{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+canvas{background:#fff;border:1px solid #ccc;width:100%;max-width:1020px;height:auto;display:block}
+#lbl .r>label:first-child{flex:0 0 100px}
+#out{display:none;margin-top:10px;background:#fff;padding:8px;border:1px solid #ccc}
+#out img{width:100%;max-width:1020px;display:block}
+@media (max-width:820px){body{flex-direction:column;padding:6px}
+#panel{width:100%;flex:none;max-height:none;overflow:visible}#chartWrap{order:-1}}
+</style></head><body>
+<div id="panel">
+<details open><summary>管道參數 (Pipe)</summary>
+<div id="secs"></div>
+<div class="btns"><button id="addSec">＋ 加管段 (Add section)</button><button id="rmSec">－ 刪管段 (Remove)</button></div>
+<div class="r"><label>總長度 (Total length, m)</label><input id="len" type="number" readonly style="background:#f0f0f0"></div>
+<div class="r"><label>總傳播時間 (Travel time A→B, ms)</label><input id="tt" type="text" readonly style="background:#f0f0f0"></div>
+<div class="r"><label>濾波下限 (Filter low, Hz)</label><input id="flo" type="number" value="60"></div>
+<div class="r"><label>濾波上限 (Filter high, Hz)</label><input id="fhi" type="number" value="600"></div>
+<div class="r"><label>陷波 (Notch)</label><select id="notch"><option value="off">off</option><option value="on">on</option></select></div>
+<div class="r"><label>FFT 最大值 (FFT max, Hz)</label><input id="fmax" type="number" value="2500"></div>
+<div class="r"><label>訊號時長 (Duration, ms)</label><input id="dur" type="number" value="45"></div>
+</details><details open><summary>漏點 (Leak)</summary>
+<div class="r"><label><input id="rnd" type="checkbox"> 隨機位置 (Random)</label></div>
+<div class="r"><label>距A點 (Dist from A, m)</label><input id="da" type="number" value="66.9" step="0.1"></div>
+<div class="r"><label>時差 Δt=tA−tB (ms)</label><input id="dtv" type="text" readonly style="background:#f0f0f0"></div>
+<div class="r"><label>峰值清晰度 (Clarity)</label><input id="clar" type="range" min="0" max="100" value="15"><span id="clv">15</span></div>
+<div class="r"><label>隨機種子 (Seed)</label><input id="seed" type="number" value="12345"><button id="rs">隨機 (Random)</button></div>
+</details><div class="btns"><button id="gen"><b>生成 (Generate)</b></button><button id="png">匯出 PNG (Export)</button><button id="svg">匯出 SVG (Export)</button></div>
+<details><summary>資料來源 (Sources)</summary><ul id="src">
+<li>WSD Manual of Mainlaying Practice (2023 amendment) — 標準管徑 DN 15–2500、PE NS 對照、DI K9、PE100 SDR11/SDR9、鋼管、襯塑鍍鋅鋼 (BS EN 10255)、不銹鋼 1.4404: <a href="https://www.wsd.gov.hk/filemanager/en/content_1456/Manual_of_Mainlaying_Practice_Amendment_1_2023(finalized).pdf" target="_blank">wsd.gov.hk …Manual_of_Mainlaying_Practice_Amendment_1_2023</a></li>
+<li>WSD Technical Requirements for Plumbing Works in Buildings (Jan 2025) / Enhanced TR for GA 2.0 — 認可物料 (copper BS EN 1057, DI BS EN 545, PE BS EN 12201-2, PVC-U, PVC-C, PE-X, plastic-lined steel, stainless steel): <a href="https://www.wsd.gov.hk/filemanager/en/content_1804/TR%202025_01_Eng%20(r2).pdf" target="_blank">TR 2025_01</a>; <a href="https://www.wsd.gov.hk/filemanager/en/content_1804/Enhanced%20Technical%20Requirements%20for%20GA%202.0_Eng.pdf" target="_blank">Enhanced TR GA 2.0</a></li>
+<li>WSD PS Appendix 22.09 PE OD↔DN 對照 (via Mill-Pro): <a href="https://www.mill-pro.com.hk/water/od-dn-conversion-table/" target="_blank">mill-pro.com.hk OD-DN table</a></li>
+<li>尺寸標準 (Size standards cited by WSD): BS EN 545 (DI), BS EN 12201-2 / ISO 4427 (PE), BS EN 1057 (Cu), BS EN 10255 (GI), BS EN 1452 / BS 3505 (PVC-U).</li>
+<li>聲速為洩漏相關儀常用典型值，僅供參考，應以現場量度校正 (Velocities are typical correlator values — approximate; calibrate on site).</li></ul></details>
+<details><summary>標籤 (Labels) — 18項，剔走自動可手動修改 (untick Auto to edit)</summary><div id="lbl"></div></details>
+</div>
+<div id="chartWrap"><canvas id="cv" width="1020" height="940"></canvas><div id="out"><p>📱 長按圖片儲存 (Long-press image to save) <button id="closeOut">關閉 (Close)</button></p><img id="outImg" alt="chart"></div></div>
+<div id="errBanner" style="display:none;background:#c62828;color:#fff;padding:8px;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999"></div>
+<script>window.onerror=function(m,u,l){var b=document.getElementById("errBanner");if(b){b.style.display="block";b.textContent="Script error: "+m+" (line "+l+")";}};</script>
+<noscript><div style="background:#c62828;color:#fff;padding:8px">JavaScript is disabled in this viewer - open the link in Safari/Chrome.</div></noscript>
+<script>
+const $=id=>document.getElementById(id);
+const W=1020,H=940;
+let data=null;
+const WSD_DN=[15,20,25,40,50,80,100,150,200,250,300,400,450,600,700,800,900,1000,1200,1400,1600,1800,2000,2200,2500];
+const PE_NS=[20,25,32,50,63,90,125,180,250,315];
+const MATS={
+ DI:{n:'球墨鑄鐵 DI (Ductile iron)',specs:['K9','K12'],dia:WSD_DN.filter(d=>d>=80&&d<=2000),v:()=>1250},
+ Steel:{n:'鋼管 Steel (MS)',specs:['Steel ≥430 N/mm²','Cement-lined'],dia:WSD_DN.filter(d=>d>=150),v:()=>1300},
+ PE100:{n:'聚乙烯 PE100 (HDPE)',specs:['PE100 SDR11','PE100 SDR9','PE100 SDR17'],dia:PE_NS.concat([355,400,450,500,560,630]),v:d=>d<=63?480:d<=125?420:d<=250?380:350},
+ MDPE:{n:'中密度聚乙烯 MDPE (PE80, legacy)',specs:['PE80 SDR11','PE80 SDR17'],dia:PE_NS,v:d=>d<=63?470:d<=125?400:370},
+ PVCU:{n:'硬聚氯乙烯 uPVC (PVC-U)',specs:['PN12','PN15','Class C','Class D','Class E'],dia:[15,20,25,32,40,50,63,80,90,100,110,150,160,200,250,300],v:()=>480},
+ LGI:{n:'襯塑鍍鋅鋼 Lined GI (PVC/PE-lined steel)',specs:['Medium, PE-lined (JWWA K132)','Medium, PVC-lined (JWWA K116)'],dia:[15,20,25,32,40,50,65,80,100,125,150],v:()=>1300},
+ SS:{n:'不銹鋼 Stainless steel',specs:['1.4404 (316L)','1.4401 (316)'],dia:[15,20,25,32,40,50,65,80,100,125,150,200,250,300],v:()=>1300},
+ Cu:{n:'銅管 Copper',specs:['BS EN 1057 R250 (half-hard)','BS EN 1057 R290 (hard)'],dia:[15,22,28,35,42,54,67,76.1,108,133,159],v:()=>1250},
+ CI:{n:'鑄鐵 Cast iron (legacy)',specs:['Grey CI (legacy)'],dia:WSD_DN.filter(d=>d>=80&&d<=600),v:()=>1200},
+ AC:{n:'石棉水泥 Asbestos cement (legacy)',specs:['AC (legacy)'],dia:WSD_DN.filter(d=>d>=80&&d<=600),v:()=>1000},
+ X:{n:'自訂 Custom',specs:[],dia:[],v:()=>1000}};
+const SH={DI:'DI',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'uPVC',LGI:'Lined GI',SS:'SS',Cu:'Cu',CI:'CI',AC:'AC'};
+let nsec=0;
+const opts=(arr,f=x=>x)=>arr.map(x=>`<option value="${x}">${f(x)}</option>`).join('')+'<option value="__c">自訂 (Custom)</option>';
+function mkSec(i,m,sp,d,L){const e=document.createElement('div');e.className='sec';e.id='S'+i;
+ e.innerHTML=`<h4>管段 ${i+1} (Section ${i+1})</h4>
+<div class="r"><label>物料 (Material)</label><select id="m${i}">${Object.keys(MATS).filter(k=>k!='X').map(k=>`<option value="${k}">${MATS[k].n}</option>`).join('')}<option value="X">自訂 (Custom)</option></select><input class="cust" id="mc${i}" type="text" placeholder="物料 Material"></div>
+<div class="r"><label>規格 (Spec)</label><select id="s${i}"></select><input class="cust" id="sc${i}" type="text" placeholder="規格 Spec"></div>
+<div class="r"><label>管徑 (Diameter, mm)</label><select id="d${i}"></select><input class="cust" id="dc${i}" type="number" placeholder="mm"></div>
+<div class="r"><label>段長 (Length, m)</label><input id="l${i}" type="number" step="0.1" value="${L}"></div>
+<div class="r"><label>聲速 (Velocity, m/s)</label><input id="v${i}" type="number"><label style="flex:0 0 auto"><input type="checkbox" id="va${i}" checked>自動 (Auto)</label></div>`;
+ $('secs').appendChild(e);$('m'+i).value=m;fillM(i,sp,d);
+ const ch=()=>{syncCust(i);autoV(i);generate();};
+ $('m'+i).onchange=()=>{fillM(i);ch();};$('s'+i).onchange=ch;$('d'+i).onchange=ch;
+ ['mc','sc','dc'].forEach(k=>$(k+i).oninput=ch);$('l'+i).oninput=generate;
+ $('v'+i).oninput=()=>{$('va'+i).checked=false;generate();};$('va'+i).onchange=ch;syncCust(i);autoV(i);}
+function fillM(i,sp,d){const M=MATS[$('m'+i).value];$('s'+i).innerHTML=opts(M.specs);$('d'+i).innerHTML=opts(M.dia);
+ if(sp!==undefined)$('s'+i).value=sp;if(d!==undefined)$('d'+i).value=d;
+ if(!M.specs.length)$('s'+i).value='__c';if(!M.dia.length)$('d'+i).value='__c';syncCust(i);}
+function syncCust(i){$('mc'+i).style.display=$('m'+i).value=='X'?'':'none';$('sc'+i).style.display=$('s'+i).value=='__c'?'':'none';$('dc'+i).style.display=$('d'+i).value=='__c'?'':'none';}
+function secVal(i){const m=$('m'+i).value,mat=m=='X'?$('mc'+i).value:SH[m],spec=$('s'+i).value=='__c'?$('sc'+i).value:$('s'+i).value,
+ dia=$('d'+i).value=='__c'?$('dc'+i).value:$('d'+i).value;return{m,mat,spec,dia:+dia||0,diaS:dia,len:+$('l'+i).value||0,vel:+$('v'+i).value||1};}
+function autoV(i){if($('va'+i).checked){const s=secVal(i);$('v'+i).value=MATS[s.m].v(s.dia);}}
+function secs(){return Array.from({length:nsec},(_,i)=>secVal(i));}
+// travel time from A to position x (m)
+function tA(x,S){let t=0,a=0;for(const s of S){const seg=Math.max(0,Math.min(s.len,x-a));t+=seg/s.vel;a+=s.len;}return t;}
+function xFromTA(t,S){let a=0;for(const s of S){const ts=s.len/s.vel;if(t<=ts)return a+t*s.vel;t-=ts;a+=s.len;}return a;}
+
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const P=()=>{const S=secs();const len=S.reduce((a,s)=>a+s.len,0);$('len').value=len.toFixed(1);const T=tA(len,S);$('tt').value=(T*1000).toFixed(2);return{S,len,T,
+ vel:S.length==1?`${S[0].vel}`:'mixed ('+S.map(s=>s.vel).join(' / ')+')',
+ flo:$('flo').value,fhi:$('fhi').value,notch:$('notch').value,fmax:$('fmax').value,dur:$('dur').value};};
+const LABELS=[
+ ['h1','Header 1',p=>`Length: ${p.len.toFixed(1)} m      Velocity: ${p.vel} m/s`],
+ ['h2','Header 2',p=>'Pipe: '+(p.S.length==1?`${p.S[0].mat}, ${p.S[0].spec} ${p.S[0].diaS} mm`:p.S.map(s=>`${s.mat} ${s.spec} ${s.diaS} mm ${s.len.toFixed(1)} m`).join(' / '))],
+ ['h3','Header 3',p=>`Filter: ${p.flo} Hz - ${p.fhi} Hz`],
+ ['h4','Header 4',p=>`Notch Filter: ${p.notch}`],
+ ['A','A',()=>'A'],['distA','distA',p=>`${data.da.toFixed(1)} m`],['leak','Leak',()=>'Leak'],
+ ['distB','distB',p=>`${Math.max(0,p.len-data.da).toFixed(1)} m`],['B','B',()=>'B'],
+ ['fA','FFT A title',()=>'FFT A'],['fAB','FFT AxB title',()=>'FFT AxB'],['fB','FFT B title',()=>'FFT B'],
+ ['f0','FFT min',()=>'0 Hz'],['f1','FFT max',p=>`${p.fmax}`],
+ ['sA','Signal A title',()=>'Signal A'],['sB','Signal B title',()=>'Signal B'],
+ ['t0','Time min',()=>'0 ms'],['t1','Time max',p=>`${p.dur} ms`]];
+const lblBox=$('lbl');
+for(const [k,n] of LABELS){const d=document.createElement('div');d.className='r';
+ d.innerHTML=`<label>${n}</label><input type="text" id="L_${k}"><label style="flex:0 0 auto"><input type="checkbox" id="A_${k}" checked>自動 (Auto)</label>`;lblBox.appendChild(d);
+ $('L_'+k).addEventListener('input',()=>{$('A_'+k).checked=false;draw();});
+ $('A_'+k).addEventListener('change',()=>draw());}
+function label(k){const p=P();const f=LABELS.find(x=>x[0]==k)[2];
+ if($('A_'+k).checked){const v=f(p);$('L_'+k).value=v;return v;}return $('L_'+k).value;}
+function generate(){
+ const p=P(),r=rng(+$('seed').value);
+ let da=+$('da').value;
+ if($('rnd').checked){da=Math.round((0.1+0.8*r())*p.len*10)/10;$('da').value=da;}
+ da=Math.min(Math.max(da,0),p.len);
+ const clar=+$('clar').value/100;
+ const sp=(n,pw,sp)=>Array.from({length:n},()=>{let v=Math.pow(r(),pw);if(r()<sp)v=0.4+0.6*r();return v*(0.3+0.7*r());});
+ const corr=sp(700,4,0.03);let mx=Math.max(...corr);
+ const tLeak=tA(da,p.S),dt=2*tLeak-p.T; // Δt = tA - tB
+ const li=Math.round((p.T?tLeak/p.T:0.5)*(corr.length-1));
+ corr[li]=Math.min(1,mx*(1.02+clar*1.5));
+ for(let j=1;j<4;j++){[li-j,li+j].forEach(i=>{if(i>=0&&i<corr.length)corr[i]=Math.max(corr[i],corr[li]*(0.5-0.12*j)*r());});}
+ const fft=n=>Array.from({length:n},()=>0.25+0.35*r()+(r()<0.08?0.4*r():0));
+ const sig=n=>Array.from({length:n},()=>{const v=r()<0.6?(0.15*r()):(0.5+0.5*r());return (r()<0.5?-1:1)*v;});
+ data={da,dt,corr,fa:fft(110),fab:fft(190),fb:fft(110),sa:sig(200),sb:sig(200)};
+ $('dtv').value=(dt*1000).toFixed(2);draw();}
+// dual renderer: canvas + svg string
+let svgParts=[];
+function R(ctx){return{
+ line(x1,y1,x2,y2,c='#000',w=1){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  svgParts.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${c}" stroke-width="${w}"/>`);},
+ text(s,x,y,al='left',bold=false,sz=20){ctx.fillStyle='#000';ctx.font=`${bold?'bold ':''}${sz}px Arial, Helvetica, sans-serif`;ctx.textAlign=al;ctx.textBaseline='alphabetic';ctx.fillText(s,x,y);
+  const esc=s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  svgParts.push(`<text x="${x}" y="${y}" font-family="Arial, Helvetica, sans-serif" font-size="${sz}" ${bold?'font-weight="bold"':''} text-anchor="${{left:'start',center:'middle',right:'end'}[al]}" xml:space="preserve">${esc}</text>`);}};}
+function bars(g,arr,x0,x1,base,h,lw=1.6){const n=arr.length;arr.forEach((v,i)=>{const x=x0+(x1-x0)*i/(n-1);g.line(x,base,x,base-v*h,i%3==1?'#555':'#000',lw);});}
+function fftBox(g,arr,x0,x1,title){const b=617;g.text(title,(x0+x1)/2,503,'center');bars(g,arr,x0+2,x1-2,b,95,2);
+ g.line(x0,b,x1,b);g.line(x0,b-8,x0,b+6);g.line(x1,b-8,x1,b+6);g.line((x0+x1)/2,b,(x0+x1)/2,b+6);}
+function sigBox(g,arr,x0,x1,title){const c=830;g.text(title,(x0+x1)/2,752,'center');
+ const n=arr.length;arr.forEach((v,i)=>{const x=x0+(x1-x0)*i/(n-1);g.line(x,c,x,c-v*58,i%3==1?'#555':'#000',1.6);});
+ g.line(x0,c,x1,c);g.line(x0,c-60,x0,c+50);g.line(x0,893,x0,908);g.line(x1,893,x1,908);
+ g.text(label('t0'),x0,928,'center');g.text(label('t1'),x1,928,'center');}
+function draw(){if(!data)return;const ctx=$('cv').getContext('2d');svgParts=[];
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);const g=R(ctx);
+ ['h1','h2','h3','h4'].forEach((k,i)=>g.text(label(k),12,26+i*30,'left',false,20));
+ g.text(label('A'),12,188,'left',true);g.text(label('distA'),258,188,'center',true);g.text(label('leak'),508,188,'center',true);
+ g.text(label('distB'),758,188,'center',true);g.text(label('B'),1004,188,'right',true);
+ bars(g,data.corr,10,1008,407,180,1.6);g.line(8,407,1010,407,'#000',2);
+ fftBox(g,data.fa,55,257,label('fA'));fftBox(g,data.fab,328,690,label('fAB'));fftBox(g,data.fb,762,962,label('fB'));
+ [[55,257],[328,690],[762,962]].forEach(([a,b])=>{g.text(label('f0'),a,658,'center');g.text(label('f1'),b,658,'center');});
+ sigBox(g,data.sa,58,417,label('sA'));sigBox(g,data.sb,601,961,label('sB'));}
+function dl(href,name){const a=document.createElement('a');a.href=href;a.download=name;document.body.appendChild(a);a.click();a.remove();}
+const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function showImg(src){$('outImg').src=src;$('out').style.display='block';$('out').scrollIntoView({behavior:'smooth'});}
+$('closeOut').onclick=()=>{$('out').style.display='none';};
+$('png').onclick=()=>{draw();const c=$('cv');
+ c.toBlob(async b=>{const f=new File([b],'leak_correlator.png',{type:'image/png'});
+  if(isMobile&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'leak_correlator.png'});return;}catch(e){if(e.name==='AbortError')return;}}
+  const durl=c.toDataURL('image/png');
+  if(isMobile){showImg(durl);return;}
+  try{dl(durl,'leak_correlator.png');}catch(e){showImg(durl);}
+ },'image/png');};
+$('svg').onclick=()=>{draw();const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="100%" height="100%" fill="#fff"/>${svgParts.join('')}</svg>`;
+ const u=URL.createObjectURL(new Blob([s],{type:'image/svg+xml'}));if(isMobile){showImg('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s));}else{dl(u,'leak_correlator.svg');}setTimeout(()=>URL.revokeObjectURL(u),1000);};
+$('gen').onclick=generate;
+$('rs').onclick=()=>{$('seed').value=Math.floor(Math.random()*1e9);generate();};
+$('clar').oninput=()=>{$('clv').textContent=$('clar').value;generate();};
+['flo','fhi','notch','fmax','dur'].forEach(id=>$(id).addEventListener('input',draw));
+$('addSec').onclick=()=>{if(nsec<3){mkSec(nsec,'PE100','PE100 SDR11','125',50);nsec++;generate();}};
+$('rmSec').onclick=()=>{if(nsec>1){nsec--;$('S'+nsec).remove();generate();}};
+mkSec(0,'MDPE','PE80 SDR11','125',152);nsec=1;
+generate();
+</script></body></html>

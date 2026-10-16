@@ -54,7 +54,7 @@ canvas{background:#fff;border:1px solid #ccc;width:100%;max-width:1020px;height:
 <li>WSD PS Appendix 22.09 PE OD↔DN 對照 (via Mill-Pro): <a href="https://www.mill-pro.com.hk/water/od-dn-conversion-table/" target="_blank">mill-pro.com.hk OD-DN table</a></li>
 <li>尺寸標準 (Size standards cited by WSD): BS EN 545 (DI), BS EN 12201-2 / ISO 4427 (PE), BS EN 1057 (Cu), BS EN 10255 (GI), BS EN 1452 / BS 3505 (PVC-U).</li>
 <li>聲速為洩漏相關儀常用典型值，僅供參考，應以現場量度校正 (Velocities are typical correlator values — approximate; calibrate on site).</li></ul></details>
-<details><summary>標籤 (Labels) — 18項，剔走自動可手動修改 (untick Auto to edit)</summary><div id="lbl"></div></details>
+<details><summary>標籤 (Labels) — 21項，剔走自動可手動修改 (untick Auto to edit)</summary><div id="lbl"></div></details>
 </div>
 <div id="chartWrap"><canvas id="cv" width="1020" height="940"></canvas><div id="out"><p>📱 長按圖片儲存 (Long-press image to save) <button id="closeOut">關閉 (Close)</button></p><img id="outImg" alt="chart"></div></div>
 <div id="errBanner" style="display:none;background:#c62828;color:#fff;padding:8px;font-size:14px;position:fixed;top:0;left:0;right:0;z-index:9999"></div>
@@ -62,7 +62,7 @@ canvas{background:#fff;border:1px solid #ccc;width:100%;max-width:1020px;height:
 <noscript><div style="background:#c62828;color:#fff;padding:8px">JavaScript is disabled in this viewer - open the link in Safari/Chrome.</div></noscript>
 <script>
 const $=id=>document.getElementById(id);
-const W=1020,H=940;
+const W=1020,H0=940;let H=H0;
 let data=null;
 const WSD_DN=[15,20,25,40,50,80,100,150,200,250,300,400,450,600,700,800,900,1000,1200,1400,1600,1800,2000,2200,2500];
 const PE_NS=[20,25,32,50,63,90,125,180,250,315];
@@ -79,6 +79,7 @@ const MATS={
  AC:{n:'石棉水泥 Asbestos cement (legacy)',specs:['AC (legacy)'],dia:WSD_DN.filter(d=>d>=80&&d<=600),v:()=>1000},
  X:{n:'自訂 Custom',specs:[],dia:[],v:()=>1000}};
 const SH={DI:'DI',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'SS',Cu:'Cu',CI:'CI',AC:'AC'};
+const FN={DI:'Ductile Iron',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'Stainless Steel',Cu:'Copper',CI:'Cast Iron',AC:'Asbestos Cement'};
 let order=[];const MAXS=3;
 const opts=(arr,f=x=>x)=>arr.map(x=>`<option value="${x}">${f(x)}</option>`).join('')+'<option value="__c">自訂 (Custom)</option>';
 const DEF={MDPE:{sp:'PE80 SDR11',d:'125',L:152}};
@@ -112,7 +113,7 @@ function fillM(i,sp,d){const M=MATS[$('m'+i).value];$('s'+i).innerHTML=opts(M.sp
  if($('d'+i).selectedIndex<0)$('d'+i).selectedIndex=Math.floor(M.dia.length/2);syncCust(i);}
 function syncCust(i){$('sc'+i).style.display=$('s'+i).value=='__c'?'':'none';$('dc'+i).style.display=$('d'+i).value=='__c'?'':'none';}
 function secVal(i){const m=$('m'+i).value,mat=m=='X'?$('mc'+i).value:SH[m],spec=$('s'+i).value=='__c'?$('sc'+i).value:$('s'+i).value,
- dia=$('d'+i).value=='__c'?$('dc'+i).value:$('d'+i).value;return{m,mat,spec,dia:+dia||0,diaS:dia,len:+$('l'+i).value||0,vel:+$('v'+i).value||1};}
+ dia=$('d'+i).value=='__c'?$('dc'+i).value:$('d'+i).value;return{m,mat,full:m=='X'?mat:FN[m],spec,dia:+dia||0,diaS:dia,len:+$('l'+i).value||0,vel:+$('v'+i).value||1};}
 function autoV(i){if($('va'+i).checked){const s=secVal(i);$('v'+i).value=MATS[s.m].v(s.dia);}}
 function secs(){return order.map(k=>secVal(k));}
 // travel time from A to position x (m)
@@ -121,11 +122,12 @@ function xFromTA(t,S){let a=0;for(const s of S){const ts=s.len/s.vel;if(t<=ts)re
 
 function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
 const P=()=>{const S=secs();const len=S.reduce((a,s)=>a+s.len,0);$('len').value=len.toFixed(1);const T=tA(len,S);$('tt').value=(T*1000).toFixed(2);return{S,len,T,
- vel:S.length==1?`${S[0].vel}`:'mixed ('+S.map(s=>s.vel).join(' / ')+')',
+ vel:S.length==1?`${S[0].vel}`:`${Math.round(len/S.reduce((a,s)=>a+s.len/s.vel,0))||0}`,
  flo:$('flo').value,fhi:$('fhi').value,notch:$('notch').value,fmax:$('fmax').value,dur:$('dur').value};};
 const LABELS=[
  ['h1','Header 1',p=>`Length: ${p.len.toFixed(1)} m      Velocity: ${p.vel} m/s`],
- ['h2','Header 2',p=>'Pipe: '+(p.S.length==1?`${p.S[0].mat} ${p.S[0].diaS} mm`:p.S.map(s=>`${s.mat} ${s.diaS} mm ${s.len.toFixed(1)} m`).join(' / '))],
+ ['h2','Header 2',p=>'Pipe: '+(p.S.length==1?`${p.S[0].mat} ${p.S[0].diaS} mm`:'Multiple materials')],
+ ...[0,1,2].map(i=>['p'+(i+1),`Pipe section ${i+1} (cols split by |)`,p=>{const s=p.S[i];return s?`${i+1}:  ${s.len.toFixed(1)} m | ${s.full} ${s.diaS} mm | ${s.vel} m/s`:'';}]),
  ['h3','Header 3',p=>`Filter: ${p.flo} Hz - ${p.fhi} Hz`],
  ['h4','Header 4',p=>`Notch Filter: ${p.notch}`],
  ['A','A',()=>'A'],['distA','distA',p=>`${data.da.toFixed(1)} m`],['leak','Leak',()=>'Leak'],
@@ -172,15 +174,21 @@ function sigBox(g,arr,x0,x1,title){const c=830;g.text(title,(x0+x1)/2,752,'cente
  const n=arr.length;arr.forEach((v,i)=>{const x=x0+(x1-x0)*i/(n-1);g.line(x,c,x,c-v*58,i%3==1?'#555':'#000',1.6);});
  g.line(x0,c,x1,c);g.line(x0,c-60,x0,c+50);g.line(x0,893,x0,908);g.line(x1,893,x1,908);
  g.text(label('t0'),x0,928,'center');g.text(label('t1'),x1,928,'center');}
-function draw(){if(!data)return;const ctx=$('cv').getContext('2d');svgParts=[];
- ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);const g=R(ctx);
- ['h1','h2','h3','h4'].forEach((k,i)=>g.text(label(k),12,26+i*30,'left',false,20));
+function draw(){if(!data)return;const cv=$('cv');const nS=order.length>1?order.length:0,off=nS*30;H=H0+off;
+ if(cv.height!=H)cv.height=H;const ctx=cv.getContext('2d');svgParts=[];
+ ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);const g=R(ctx);
+ let y=26;g.text(label('h1'),12,y);y+=30;g.text(label('h2'),12,y);y+=30;
+ if(nS){ctx.font='20px Arial, Helvetica, sans-serif';const rows=[];for(let i=0;i<nS;i++)rows.push(label('p'+(i+1)).split('|').map(t=>t.trim()));
+  const c1=52,w=j=>Math.max(0,...rows.map(r=>r[j]?ctx.measureText(r[j]).width:0)),c2=Math.max(218,c1+w(0)+40),c3=Math.max(450,c2+w(1)+30);
+  rows.forEach(r=>{[c1,c2,c3].forEach((x,j)=>{if(r[j])g.text(r[j],x,y);});if(r.length>3)g.text(r.slice(3).join(' '),c3+w(2)+30,y);y+=30;});}
+ g.text(label('h3'),12,y);y+=30;g.text(label('h4'),12,y);
+ ctx.translate(0,off);svgParts.push(`<g transform="translate(0,${off})">`);
  g.text(label('A'),12,188,'left',true);g.text(label('distA'),258,188,'center',true);g.text(label('leak'),508,188,'center',true);
  g.text(label('distB'),758,188,'center',true);g.text(label('B'),1004,188,'right',true);
  bars(g,data.corr,10,1008,407,180,1.6);g.line(8,407,1010,407,'#000',2);
  fftBox(g,data.fa,55,257,label('fA'));fftBox(g,data.fab,328,690,label('fAB'));fftBox(g,data.fb,762,962,label('fB'));
  [[55,257],[328,690],[762,962]].forEach(([a,b])=>{g.text(label('f0'),a,658,'center');g.text(label('f1'),b,658,'center');});
- sigBox(g,data.sa,58,417,label('sA'));sigBox(g,data.sb,601,961,label('sB'));}
+ sigBox(g,data.sa,58,417,label('sA'));sigBox(g,data.sb,601,961,label('sB'));svgParts.push('</g>');ctx.setTransform(1,0,0,1,0,0);}
 function dl(href,name){const a=document.createElement('a');a.href=href;a.download=name;document.body.appendChild(a);a.click();a.remove();}
 const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showImg(src){$('outImg').src=src;$('out').style.display='block';$('out').scrollIntoView({behavior:'smooth'});}

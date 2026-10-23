@@ -70,17 +70,14 @@ const DIA=[25,50,80,100,150,200,250,300,400,500];
 const MATS={
  DI:{n:'球墨鑄鐵 DI (Ductile iron)',specs:['K9','K12'],dia:DIA,v:()=>1250},
  Steel:{n:'鋼管 Steel (MS)',specs:['Steel ≥430 N/mm²','Cement-lined'],dia:DIA,v:()=>1300},
- PE100:{n:'聚乙烯 PE100 (HDPE)',specs:['PE100 SDR11','PE100 SDR9','PE100 SDR17'],dia:DIA,v:d=>d<=63?480:d<=125?420:d<=250?380:350},
  MDPE:{n:'中密度聚乙烯 MDPE (PE80, legacy)',specs:['PE80 SDR11','PE80 SDR17'],dia:DIA,v:d=>d<=63?470:d<=125?400:370},
  PVCU:{n:'硬聚氯乙烯 UPVC (PVC-U)',specs:['PN12','PN15','Class C','Class D','Class E'],dia:DIA,v:()=>480},
  LGI:{n:'襯塑鍍鋅鋼 Lined GI (PVC/PE-lined steel)',specs:['Medium, PE-lined (JWWA K132)','Medium, PVC-lined (JWWA K116)'],dia:DIA,v:()=>1300},
- SS:{n:'不銹鋼 Stainless steel',specs:['1.4404 (316L)','1.4401 (316)'],dia:DIA,v:()=>1300},
- Cu:{n:'銅管 Copper',specs:['BS EN 1057 R250 (half-hard)','BS EN 1057 R290 (hard)'],dia:DIA,v:()=>1250},
  CI:{n:'鑄鐵 Cast iron (legacy)',specs:['Grey CI (legacy)'],dia:DIA,v:()=>1200},
  AC:{n:'石棉水泥 Asbestos cement (legacy)',specs:['AC (legacy)'],dia:DIA,v:()=>1000},
  X:{n:'自訂 Custom',specs:[],dia:DIA,v:()=>1000}};
-const SH={DI:'DI',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'SS',Cu:'Cu',CI:'CI',AC:'AC'};
-const FN={DI:'Ductile Iron',Steel:'Steel',PE100:'HDPE',MDPE:'MDPE',PVCU:'UPVC',LGI:'Lined GI',SS:'Stainless Steel',Cu:'Copper',CI:'Cast Iron',AC:'Asbestos Cement'};
+const SH={DI:'DI',Steel:'Steel',MDPE:'MDPE, PE80',PVCU:'UPVC',LGI:'Lined GI',CI:'CI',AC:'AC'};
+const FN={DI:'Ductile Iron',Steel:'Steel',MDPE:'MDPE, PE80',PVCU:'UPVC',LGI:'Lined GI',CI:'Cast Iron',AC:'AC'};
 let order=[];const MAXS=10;
 const opts=(arr,f=x=>x)=>arr.map(x=>`<option value="${x}">${f(x)}</option>`).join('')+'<option value="__c">自訂 (Custom)</option>';
 const DEF={MDPE:{sp:'PE80 SDR11',d:'100',L:152}};
@@ -127,7 +124,7 @@ const P=()=>{const S=secs();const len=S.reduce((a,s)=>a+s.len,0);$('len').value=
  flo:$('flo').value,fhi:$('fhi').value,notch:$('notch').value,fmax:$('fmax').value,dur:$('dur').value};};
 const LABELS=[
  ['h1','Header 1',p=>`Length: ${p.len.toFixed(1)} m      Velocity: ${p.vel} m/s`],
- ['h2','Header 2',p=>'Pipe: '+(p.S.length==1?`${p.S[0].mat} ${p.S[0].diaS} mm`:'Multiple materials')],
+ ['h2','Header 2',p=>'Pipe: '+(p.S.length==1?`${(p.S[0].m=='DI'||p.S[0].m=='CI'||p.S[0].m=='MDPE'?FN[p.S[0].m]||p.S[0].mat:p.S[0].mat)} ${p.S[0].diaS} mm`:'Multiple materials')],
  ...Array.from({length:MAXS},(_,i)=>i).map(i=>['p'+(i+1),`Pipe section ${i+1} (cols split by |)`,p=>{const s=p.S[i];return s?`${i+1}:  ${s.len.toFixed(1)} m | ${s.full} ${s.diaS} mm | ${s.vel} m/s`:'';}]),
  ['h3','Header 3',p=>`Filter: ${p.flo} Hz - ${p.fhi} Hz`],
  ['h4','Header 4',p=>`Notch Filter: ${p.notch}`],
